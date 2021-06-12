@@ -50,7 +50,7 @@
 	branch = master
 [submodule "vendor/nim-chronos"]
 	path = vendor/nim-chronos
-	url = https://github.com/status-im/nim-chronos.git
+	url = https://github.com/michaelsbradleyjr/nim-chronos.git
 	ignore = dirty
 	branch = master
 [submodule "vendor/nim-json-serialization"]
@@ -108,7 +108,8 @@
 	url = https://github.com/status-im/nim-web3.git
 [submodule "vendor/rln"]
 	path = vendor/rln
-	url = https://github.com/kilic/rln
+	url = https://github.com/michaelsbradleyjr/rln.git
+	ignore = untracked
 	branch = full-node
 [submodule "vendor/nim-testutils"]
 	path = vendor/nim-testutils
