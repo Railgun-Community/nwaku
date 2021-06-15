@@ -19,8 +19,10 @@ type
     mode* : SwapMode
     paymentThreshold* : int
     disconnectThreshold* : int
+    swapAddress*: string
 
   Beneficiary* = seq[byte]
+  Issuer* = seq[byte]
 
   # TODO Consider adding payment threshhold and terms field
   Handshake* = object
@@ -30,6 +32,7 @@ type
   # TODO Look over these data structures again
   Cheque* = object
     beneficiary*: Beneficiary
+    issuer*: Issuer
     date*: uint32
     amount*: uint32
     signature*: seq[byte]
@@ -52,5 +55,6 @@ proc init*(_: type[SwapConfig]): SwapConfig =
   SwapConfig(
       mode: SwapMode.Soft,
       paymentThreshold: 100,
-      disconnectThreshold: -100
+      disconnectThreshold: -100,
+      swapAddress: "0x6C3d502f1a97d4470b881015b83D9Dd1062172e1"
   )

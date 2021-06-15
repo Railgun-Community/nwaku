@@ -96,15 +96,15 @@ proc init*(T: type Cheque, buffer: seq[byte]): ProtoResult[T] =
 
 
 # TODO Assume we calculated cheque
-proc sendCheque*(ws: WakuSwap) {.async.} =
-  let peerOpt = ws.peerManager.selectPeer(WakuSwapCodec)
+proc sendCheque*(ws: WakuSwap, peer: PeerId) {.async.} =
+  # let peerOpt = ws.peerManager.selectPeer(WakuSwapCodec)
 
-  if peerOpt.isNone():
-    error "no suitable remote peers"
-    waku_swap_errors.inc(labelValues = [dialFailure])
-    return
+  # if peerOpt.isNone():
+  #   error "no suitable remote peers"
+  #   waku_swap_errors.inc(labelValues = [dialFailure])
+  #   return
 
-  let peer = peerOpt.get()
+  # let peer = peerOpt.get()
 
   let connOpt = await ws.peerManager.dialPeer(peer, WakuSwapCodec)
 
@@ -118,25 +118,25 @@ proc sendCheque*(ws: WakuSwap) {.async.} =
 
   # TODO We get this from the setup of swap setup, dynamic, should be part of setup
   # TODO Add beneficiary, etc
-  var aliceSwapAddress = "0x6C3d502f1a97d4470b881015b83D9Dd1062172e1"
+  var swapAddress = ws.config.swapAddress
   var signature: string
 
-  var res = waku_swap_contracts.signCheque(aliceSwapAddress)
+  var res = waku_swap_contracts.signCheque(swapAddress)
   if res.isOk():
     info "signCheque ", res=res[]
-    let json = res[]
+    let json = res[]           
     signature = json["signature"].getStr()
   else:
     # To test code paths, this should look different in a production setting
     warn "Something went wrong when signing cheque, sending anyway"
 
-  info "Signed Cheque", swapAddress = aliceSwapAddress, signature = signature
+  info "Signed Cheque", swapAddress = swapAddress, signature = signature
   let sigBytes = cast[seq[byte]](signature)
   await connOpt.get().writeLP(Cheque(amount: 1, signature: sigBytes).encode().buffer)
 
   # Set new balance
   let peerId = peer.peerId
-  ws.accounting[peerId] -= 1
+  ws.accounting[peerId] -= ws.config.paymentThreshold
   info "New accounting state", accounting = ws.accounting[peerId]
 
 # TODO Authenticate cheque, check beneficiary etc
@@ -245,7 +245,7 @@ proc init*(wakuSwap: WakuSwap) =
       warn "Payment threshhold has been reached: ", threshold=wakuSwap.config.paymentThreshold, balance=wakuSwap.accounting[peerId]
       #In soft phase we don't send cheques yet
       if wakuSwap.config.mode == Mock:
-        discard wakuSwap.sendCheque()
+        discard wakuSwap.sendCheque(peerId)
     else:
       info "Payment threshhold not hit"
 
