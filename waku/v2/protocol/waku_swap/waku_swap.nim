@@ -148,9 +148,17 @@ proc handleCheque*(ws: WakuSwap, cheque: Cheque) =
 
   # TODO Redeem cheque here
   var signature = cast[string](cheque.signature)
+  
   # TODO Where should Alice Swap Address come from? Handshake probably?
   # Hacky for now
   var aliceSwapAddress = "0x6C3d502f1a97d4470b881015b83D9Dd1062172e1"
+
+  # Get the original signer using web3. Check if web3.eth.personal.ecRecover(messageHash, signature); or an quivalent has been implemented in nim-web3
+  let signer = "signer";
+
+  if signer != cheque.issuer:
+    warn "Invalid cheque: The address of the issuer is different from the signer."
+
   info "Redeeming cheque with", swapAddress=aliceSwapAddress, signature=signature
   var res = waku_swap_contracts.redeemCheque(aliceSwapAddress, signature)
   if res.isOk():
