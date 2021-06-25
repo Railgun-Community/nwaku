@@ -77,6 +77,11 @@ proc redeemCheque*(swapAddress: string, signature: string): NodeTaskJsonResult =
   let res = execNodeTaskJson(task)
   return res
 
+proc getSwapAddress*(): NodeTaskJsonResult =
+  let task = "getSwapAddress"
+  let res = execNodeTaskJson(task)
+  return res
+
 when isMainModule:
   var aliceSwapAddress = "0x6C3d502f1a97d4470b881015b83D9Dd1062172e1"
   var sigRes = signCheque(aliceSwapAddress)

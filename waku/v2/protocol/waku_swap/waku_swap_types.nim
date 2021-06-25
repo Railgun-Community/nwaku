@@ -28,7 +28,6 @@ type
 
   # TODO Look over these data structures again
   Cheque* = object
-    issuerAddress*: string
     beneficiary*: Beneficiary
     date*: uint32
     amount*: uint32
@@ -47,6 +46,7 @@ type
     debit*: DebitHandler
     applyPolicy*: ApplyPolicyHandler
     config*: SwapConfig
+    swapAddress*: string
 
 proc init*(_: type[SwapConfig]): SwapConfig =
   SwapConfig(
