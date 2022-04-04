@@ -41,9 +41,7 @@ jobs:
       - name: Install dependencies
         run: |
           make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" V=1 update 
-          make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" wakunode1
-          make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" CI=false wakunode2
-          make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" LOG_LEVEL=TRACE chat2
+          make -j${NPROC} NIMFLAGS="--parallelBuild:${NPROC}" CI=false LOG_LEVEL=TRACE wakunode2
           tar -cvzf nim-waku-${{ matrix.platform }}.tar.gz ./build/
 
       - name: Upload asset
