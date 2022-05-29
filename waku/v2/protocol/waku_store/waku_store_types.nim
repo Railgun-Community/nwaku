@@ -11,7 +11,6 @@ import
   libp2p/protocols/protocol,
   stew/[results, sorted_set],
   # internal imports
-  ../../node/storage/message/message_store,
   ../../utils/pagination,
   ../../utils/time,
   ../../node/peer_manager/peer_manager,
@@ -24,7 +23,6 @@ export
   results,
   peer_manager,
   waku_swap_types,
-  message_store,
   waku_message,
   pagination
 
@@ -46,7 +44,7 @@ type
     contentTopic*: ContentTopic
 
   QueryHandlerFunc* = proc(response: HistoryResponse) {.gcsafe, closure.}
-
+  
   QueryFilterMatcher* = proc(indexedWakuMsg: IndexedWakuMessage) : bool {.gcsafe, closure.}
 
   IndexedWakuMessage* = object
@@ -67,17 +65,19 @@ type
     cursor*: Index
     direction*: PagingDirection
 
+  HistoryResponseError* {.pure.} = enum
+    ## HistoryResponseError contains error message to inform  the querying node about the state of its request
+    NONE = uint32(0)
+    INVALID_CURSOR = uint32(1)
+
+
+
   HistoryQuery* = object
     contentFilters*: seq[HistoryContentFilter]
     pubsubTopic*: string
     pagingInfo*: PagingInfo # used for pagination
     startTime*: Timestamp # used for time-window query
     endTime*: Timestamp # used for time-window query
-
-  HistoryResponseError* {.pure.} = enum
-    ## HistoryResponseError contains error message to inform  the querying node about the state of its request
-    NONE = uint32(0)
-    INVALID_CURSOR = uint32(1)
 
   HistoryResponse* = object
     messages*: seq[WakuMessage]
@@ -109,13 +109,6 @@ type
 
   StoreQueueResult*[T] = Result[T, cstring]
   
-  WakuStore* = ref object of LPProtocol
-    peerManager*: PeerManager
-    rng*: ref BrHmacDrbgContext
-    messages*: StoreQueueRef # in-memory message store
-    store*: MessageStore  # sqlite DB handle
-    wakuSwap*: WakuSwap
-    persistMessages*: bool
 
 ######################
 # StoreQueue helpers #
@@ -423,9 +416,9 @@ proc getPage*(storeQueue: StoreQueueRef,
                   else: pagingInfo.pageSize
   
   case pagingInfo.direction
-    of FORWARD:
+    of PagingDirection.FORWARD:
       return storeQueue.fwdPage(pred, maxPageSize, cursorOpt)
-    of BACKWARD:
+    of PagingDirection.BACKWARD:
       return storeQueue.bwdPage(pred, maxPageSize, cursorOpt)
 
 proc getPage*(storeQueue: StoreQueueRef,
@@ -437,6 +430,7 @@ proc getPage*(storeQueue: StoreQueueRef,
   proc predicate(i: IndexedWakuMessage): bool = true # no filtering
 
   return getPage(storeQueue, predicate, pagingInfo)
+
 
 proc contains*(storeQueue: StoreQueueRef, index: Index): bool =
   ## Return `true` if the store queue already contains the `index`,

@@ -160,6 +160,11 @@ type
       defaultValue: 50000
       name: "store-capacity" }: int
     
+    sqliteOnlyStore* {.
+      desc: "Enable sqlite-only store: true|false",
+      defaultValue: false
+      name: "sqlite-only-store" }: bool
+
     ## Filter config
 
     filter* {.
