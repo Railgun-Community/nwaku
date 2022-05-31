@@ -238,7 +238,7 @@ suite "Message Store: Retrieve Pages":
     let pagingInfo = PagingInfo(pageSize: maxPageSize,
                              cursor: indexes[1],
                              direction: PagingDirection.FORWARD)
-    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo)
+    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo).get()
 
     let expectedOutPagingInfo = PagingInfo(pageSize: 3,
                              cursor: indexes[4],
@@ -257,7 +257,7 @@ suite "Message Store: Retrieve Pages":
     let pagingInfo = PagingInfo(pageSize: maxPageSize,
                              cursor: indexes[4],
                              direction: PagingDirection.BACKWARD)
-    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo)
+    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo).get()
 
     let expectedOutPagingInfo = PagingInfo(pageSize: 3,
                              cursor: indexes[1],
@@ -277,7 +277,7 @@ suite "Message Store: Retrieve Pages":
     let pagingInfo = PagingInfo(pageSize: maxPageSize,
                              # we don't set an index here to test the default index
                              direction: PagingDirection.FORWARD)
-    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo)
+    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo).get()
 
     let expectedOutPagingInfo = PagingInfo(pageSize: 3,
                              cursor: indexes[2],
@@ -297,7 +297,7 @@ suite "Message Store: Retrieve Pages":
     let pagingInfo = PagingInfo(pageSize: maxPageSize,
                              # we don't set an index here to test the default index
                              direction: PagingDirection.BACKWARD)
-    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo)
+    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo).get()
 
     let expectedOutPagingInfo = PagingInfo(pageSize: 3,
                              cursor: indexes[6],
@@ -317,7 +317,7 @@ suite "Message Store: Retrieve Pages":
     let pagingInfo = PagingInfo(pageSize: maxPageSize,
                              # we don't set an index here; start at the beginning
                              direction: PagingDirection.FORWARD)
-    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo)
+    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo).get()
 
     let expectedOutPagingInfo = PagingInfo(pageSize: 9, # there are only 10 msgs in total in the DB
                              cursor: indexes[8],
@@ -337,7 +337,7 @@ suite "Message Store: Retrieve Pages":
     let pagingInfo = PagingInfo(pageSize: maxPageSize,
                              # we don't set an index here to test the default index
                              direction: PagingDirection.BACKWARD)
-    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo)
+    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo).get()
 
     let expectedOutPagingInfo = PagingInfo(pageSize: 9,
                              cursor: indexes[0],
@@ -364,7 +364,7 @@ suite "Message Store: Retrieve Pages":
     let pagingInfo = PagingInfo(pageSize: maxPageSize,
                              cursor: indexes[1],
                              direction: PagingDirection.FORWARD)
-    let (outMessages, outPagingInfo, outError) = store.getPage(predicate, pagingInfo)
+    let (outMessages, outPagingInfo, outError) = store.getPage(predicate, pagingInfo).get()
 
     let expectedOutPagingInfo = PagingInfo(pageSize: 3,
                              cursor: indexes[7],
@@ -389,7 +389,7 @@ suite "Message Store: Retrieve Pages":
     let pagingInfo = PagingInfo(pageSize: maxPageSize,
                              cursor: indexes[1],
                              direction: PagingDirection.FORWARD)
-    let (outMessages, outPagingInfo, outError) = store.getPage(predicate, pagingInfo)
+    let (outMessages, outPagingInfo, outError) = store.getPage(predicate, pagingInfo).get()
 
     let expectedOutPagingInfo = PagingInfo(pageSize: 2,
                              cursor: indexes[8], # index is advanced by one because one message was not accepted by the filter
@@ -413,7 +413,7 @@ suite "Message Store: Retrieve Pages":
     let pagingInfo = PagingInfo(pageSize: maxPageSize,
                              cursor: nonStoredIndex,
                              direction: PagingDirection.FORWARD)
-    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo)
+    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo).get()
 
     let expectedOutPagingInfo = PagingInfo(pageSize: 0, # no message expected
                              cursor: Index(),
@@ -429,7 +429,7 @@ suite "Message Store: Retrieve Pages":
     let pagingInfo = PagingInfo(pageSize: maxPageSize,
                              cursor: indexes[8],
                              direction: PagingDirection.FORWARD)
-    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo)
+    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo).get()
 
     let expectedOutPagingInfo = PagingInfo(pageSize: 0, # no message expected, because we already have the last index
                              cursor: Index(), # empty index, because we went beyond the last index
@@ -446,7 +446,7 @@ suite "Message Store: Retrieve Pages":
     let pagingInfo = PagingInfo(pageSize: maxPageSize,
                              cursor: indexes[0],
                              direction: PagingDirection.BACKWARD)
-    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo)
+    let (outMessages, outPagingInfo, outError) = store.getPage(pagingInfo).get()
 
     let expectedOutPagingInfo = PagingInfo(pageSize: 0, # no message expected, because we already have the first index (and go trough backwards)
                              cursor: Index(), # empty index, because we went beyond the first index (backwards)
@@ -467,7 +467,7 @@ suite "Message Store: Retrieve Pages":
     let pagingInfo = PagingInfo(pageSize: maxPageSize,
                              cursor: indexes[1],
                              direction: PagingDirection.FORWARD)
-    let (outMessages, outPagingInfo, outError) = store.getPage(predicate, pagingInfo)
+    let (outMessages, outPagingInfo, outError) = store.getPage(predicate, pagingInfo).get()
 
     let expectedOutPagingInfo = PagingInfo(pageSize: 0,
                              cursor: indexes[8], # last index; DB was searched until the end (no message matched the predicate)
@@ -487,7 +487,7 @@ suite "Message Store: Retrieve Pages":
     let pagingInfo = PagingInfo(pageSize: maxPageSize,
                              # we don't set an index here, starting from the beginning. This also covers the inital special case of the retrieval loop.
                              direction: PagingDirection.FORWARD)
-    let (outMessages, outPagingInfo, outError) = store.getPage(predicate, pagingInfo)
+    let (outMessages, outPagingInfo, outError) = store.getPage(predicate, pagingInfo).get()
 
     let expectedOutPagingInfo = PagingInfo(pageSize: 2,
                              cursor: indexes[7],

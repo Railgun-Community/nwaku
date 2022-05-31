@@ -219,7 +219,7 @@ method getAll*(db: WakuMessageStore, onData: message_store.DataProc): MessageSto
 method getPage*(db: WakuMessageStore,
               pred: QueryFilterMatcher,
               pagingInfo: PagingInfo):
-             (seq[WakuMessage], PagingInfo, HistoryResponseError) =
+             MessageStoreResult[(seq[WakuMessage], PagingInfo, HistoryResponseError)] =
   ## Get a single page of history matching the predicate and
   ## adhering to the pagingInfo parameters
   
@@ -287,8 +287,7 @@ method getPage*(db: WakuMessageStore,
 
     let res = db.database.query(noCursorQuery, msg)
     if res.isErr:
-      # TODO properly handle this exception
-      quit 1
+      return err("failed to execute SQLite query: noCursorQuery")
     numRecordsVisitedTotal = numRecordsVisitedPage
     numRecordsVisitedPage = 0
     cursor = lastIndex
@@ -302,7 +301,7 @@ method getPage*(db: WakuMessageStore,
         "LIMIT " & $maxPageSize & ";",
         (Timestamp, seq[byte], seq[byte]),
         (Timestamp, seq[byte], seq[byte], seq[byte], int64, Timestamp),
-      )
+      ).expect("this is a valid statement")
     else:
       db.database.prepareStmt(
         "SELECT receiverTimestamp, contentTopic, payload, pubsubTopic, version, senderTimestamp " &
@@ -312,18 +311,14 @@ method getPage*(db: WakuMessageStore,
         "LIMIT " & $maxPageSize & ";",
         (Timestamp, seq[byte], seq[byte]),
         (Timestamp, seq[byte], seq[byte], seq[byte], int64, Timestamp),
-      )
+      ).expect("this is a valid statement")
 
-  if preparedPageQuery.isErr:
-    # return err("failed to prepare page query")
-    quit 1 # TODO
 
   # TODO: DoS attack migration against: sending a lot of queries with sparse (or non-matching) filters making the store node run through the whole DB. Even worse with pageSize = 1.
   while uint64(messages.len) < maxPageSize:
-    let res = preparedPageQuery.value.exec((cursor.senderTime, @(cursor.digest.data), cursor.pubsubTopic.toBytes()), msg)
+    let res = preparedPageQuery.exec((cursor.senderTime, @(cursor.digest.data), cursor.pubsubTopic.toBytes()), msg)
     if res.isErr:
-      # return err("failed")
-      quit 1 # TODO
+      return err("failed to execute SQLite prepared statement: preparedPageQuery")
     numRecordsVisitedTotal += numRecordsVisitedPage
     if numRecordsVisitedPage == 0: break # we are at the end of the DB (find more efficient/integrated solution to track that event)
     numRecordsVisitedPage = 0
@@ -336,14 +331,16 @@ method getPage*(db: WakuMessageStore,
   let historyResponseError = if numRecordsVisitedTotal == 0: HistoryResponseError.INVALID_CURSOR # Index is not in DB (also if queried Index points to last entry)
     else: HistoryResponseError.NONE
 
-  return (messages, outPagingInfo, historyResponseError) # TODO: use canonical way of handling errors
+  preparedPageQuery.dispose()
+
+  return ok((messages, outPagingInfo, historyResponseError)) # TODO: historyResponseError is not a "real error": treat as a real error
 
 
 
 
 method getPage*(db: WakuMessageStore,
               pagingInfo: PagingInfo):
-             (seq[WakuMessage], PagingInfo, HistoryResponseError) =
+             MessageStoreResult[(seq[WakuMessage], PagingInfo, HistoryResponseError)] =
   ## Get a single page of history without filtering.
   ## Adhere to the pagingInfo parameters
   

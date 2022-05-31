@@ -330,7 +330,7 @@ proc findMessages(w: WakuStore, query: HistoryQuery): HistoryResponse {.gcsafe.}
   let
     # Read a page of history matching the query
     (wakuMsgList, updatedPagingInfo, error) = if not w.isSqliteOnly:  w.messages.getPage(matchesQuery, query.pagingInfo)
-    else: w.store.getPage(matchesQuery, query.pagingInfo)
+    else: w.store.getPage(matchesQuery, query.pagingInfo).expect("should return a valid result set") # TODO: error handling
 
     # Build response
     historyRes = HistoryResponse(messages: wakuMsgList, pagingInfo: updatedPagingInfo, error: error)
