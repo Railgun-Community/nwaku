@@ -215,6 +215,12 @@ method getAll*(db: WakuMessageStore, onData: message_store.DataProc): MessageSto
 
   ok gotMessages
 
+proc adjustDbPageSize(dbPageSize: uint64, matchCount: uint64, returnPageSize: uint64): uint64 {.inline.} =
+  var ret = if matchCount < 2: dbPageSize * returnPageSize
+    else: dbPageSize * (returnPageSize div matchCount)
+  trace "dbPageSize adjusted to: ",  ret
+  ret
+
 
 method getPage*(db: WakuMessageStore,
               pred: QueryFilterMatcher,
@@ -226,18 +232,22 @@ method getPage*(db: WakuMessageStore,
   trace "getting page from SQLite DB", pagingInfo=pagingInfo
 
   let
-    maxPageSize = if pagingInfo.pageSize == 0 or pagingInfo.pageSize > MaxPageSize: MaxPageSize # Used default MaxPageSize for invalid pagingInfos
+    responsePageSize = if pagingInfo.pageSize == 0 or pagingInfo.pageSize > MaxPageSize: MaxPageSize # Used default MaxPageSize for invalid pagingInfos
                   else: pagingInfo.pageSize
 
-  var cursor = pagingInfo.cursor 
+  var dbPageSize = responsePageSize  # we retrieve larger pages from the DB for queries with (sparse) filters (TODO: improve adaptive dbPageSize increase)
+
+  var cursor = pagingInfo.cursor
 
   var messages: seq[WakuMessage]
   var
     lastIndex: Index
     numRecordsVisitedPage: uint64 = 0  # number of DB records visited during retrieving the last page from the DB
     numRecordsVisitedTotal: uint64 = 0 # number of DB records visited in total
+    numRecordsMatchingPred: uint64 = 0 # number of records that matched the predicate on the last DB page; we use this as to gauge the sparseness rows matching the filter.
 
   proc msg(s: ptr sqlite3_stmt) = # this is the actual onData proc that is passed to the query proc (the message store adds one indirection)
+    if uint64(messages.len) >= responsePageSize: return
     let
       receiverTimestamp = column_timestamp(s, 0)
 
@@ -258,14 +268,14 @@ method getPage*(db: WakuMessageStore,
       senderTimestamp = column_timestamp(s, 5)
       retMsg = WakuMessage(contentTopic: contentTopic, payload: payload, version: uint32(version), timestamp: Timestamp(senderTimestamp))
       # TODO: we should consolidate WakuMessage, Index, and IndexedWakuMessage; reason: avoid unnecessary copying and recalculation
-      # TODO: retrieve digest from DB
-      index = retMsg.computeIndex(receiverTimestamp, pubsubTopic)
-      indexedWakuMsg = IndexedWakuMessage(msg: retMsg, index: index, pubsubTopic: pubsubTopic)
+      index = retMsg.computeIndex(receiverTimestamp, pubsubTopic) # TODO: retrieve digest from DB
+      indexedWakuMsg = IndexedWakuMessage(msg: retMsg, index: index, pubsubTopic: pubsubTopic) # TODO: constructing indexedWakuMsg requires unnecessary copying
 
     lastIndex = index
     numRecordsVisitedPage += 1
     try:
       if pred(indexedWakuMsg): #TODO throws unknown exception
+        numRecordsMatchingPred += 1
         messages.add(retMsg)
     except:
       # TODO properly handle this exception
@@ -278,18 +288,20 @@ method getPage*(db: WakuMessageStore,
         "SELECT receiverTimestamp, contentTopic, payload, pubsubTopic, version, senderTimestamp " &
         "FROM " & TABLE_TITLE & " " &
         "ORDER BY senderTimestamp, receiverTimestamp, id, pubsubTopic " &
-        "LIMIT " & $maxPageSize & ";"
+        "LIMIT " & $dbPageSize & ";"
     else:
         "SELECT receiverTimestamp, contentTopic, payload, pubsubTopic, version, senderTimestamp " &
         "FROM " & TABLE_TITLE & " " &
         "ORDER BY senderTimestamp DESC, receiverTimestamp DESC, id DESC, pubsubTopic DESC " &
-        "LIMIT " & $maxPageSize & ";"
+        "LIMIT " & $dbPageSize & ";"
 
     let res = db.database.query(noCursorQuery, msg)
     if res.isErr:
       return err("failed to execute SQLite query: noCursorQuery")
     numRecordsVisitedTotal = numRecordsVisitedPage
     numRecordsVisitedPage = 0
+    dbPageSize = adjustDbPageSize(dbPageSize, numRecordsMatchingPred, responsePageSize)
+    numRecordsMatchingPred = 0
     cursor = lastIndex
 
   let preparedPageQuery = if pagingInfo.direction == PagingDirection.FORWARD:
@@ -297,9 +309,9 @@ method getPage*(db: WakuMessageStore,
         "SELECT receiverTimestamp, contentTopic, payload, pubsubTopic, version, senderTimestamp " &
         "FROM " & TABLE_TITLE & " " &
         "WHERE (senderTimestamp, id, pubsubTopic) > (?, ?, ?)" &
-        "ORDER BY senderTimestamp, id, receiverTimestamp, pubsubTopic " &
-        "LIMIT " & $maxPageSize & ";",
-        (Timestamp, seq[byte], seq[byte]),
+        "ORDER BY senderTimestamp, receiverTimestamp, id, pubsubTopic " &
+        "LIMIT ?;",
+        (Timestamp, seq[byte], seq[byte], int64), # TODO: uint64 not supported yet
         (Timestamp, seq[byte], seq[byte], seq[byte], int64, Timestamp),
       ).expect("this is a valid statement")
     else:
@@ -308,21 +320,23 @@ method getPage*(db: WakuMessageStore,
         "FROM " & TABLE_TITLE & " " &
         "WHERE (senderTimestamp, id, pubsubTopic) < (?, ?, ?)" &
         "ORDER BY senderTimestamp DESC, receiverTimestamp DESC, id DESC, pubsubTopic DESC " &
-        "LIMIT " & $maxPageSize & ";",
-        (Timestamp, seq[byte], seq[byte]),
+        "LIMIT ?;",
+        (Timestamp, seq[byte], seq[byte], int64),
         (Timestamp, seq[byte], seq[byte], seq[byte], int64, Timestamp),
       ).expect("this is a valid statement")
 
 
   # TODO: DoS attack migration against: sending a lot of queries with sparse (or non-matching) filters making the store node run through the whole DB. Even worse with pageSize = 1.
-  while uint64(messages.len) < maxPageSize:
-    let res = preparedPageQuery.exec((cursor.senderTime, @(cursor.digest.data), cursor.pubsubTopic.toBytes()), msg)
+  while uint64(messages.len) < responsePageSize:
+    let res = preparedPageQuery.exec((cursor.senderTime, @(cursor.digest.data), cursor.pubsubTopic.toBytes(), dbPageSize.int64), msg) # TODO support uint64, pages large enough to cause an overflow are not expected...
     if res.isErr:
       return err("failed to execute SQLite prepared statement: preparedPageQuery")
     numRecordsVisitedTotal += numRecordsVisitedPage
     if numRecordsVisitedPage == 0: break # we are at the end of the DB (find more efficient/integrated solution to track that event)
     numRecordsVisitedPage = 0
     cursor = lastIndex
+    dbPageSize = adjustDbPageSize(dbPageSize, numRecordsMatchingPred, responsePageSize)
+    numRecordsMatchingPred = 0
 
   let outPagingInfo = PagingInfo(pageSize: messages.len.uint,
                              cursor: lastIndex,

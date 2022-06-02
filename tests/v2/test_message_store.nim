@@ -367,7 +367,7 @@ suite "Message Store: Retrieve Pages":
     let (outMessages, outPagingInfo, outError) = store.getPage(predicate, pagingInfo).get()
 
     let expectedOutPagingInfo = PagingInfo(pageSize: 3,
-                             cursor: indexes[7],
+                             cursor: indexes[5],
                              direction: PagingDirection.FORWARD)
 
     check:
