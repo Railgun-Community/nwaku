@@ -1,8 +1,12 @@
 import
   chronicles,
   json_serialization,
-  json_serialization/std/options
-import "."/json_serdes
+  json_serialization/std/options,
+  presto/route
+import "."/[
+  json_serdes,
+  rest_api_response
+]
 
 logScope: topics = "api_rest_debug"
 
@@ -52,14 +56,25 @@ proc readValue*(reader: var JsonReader[RestJson], value: var DebugWakuInfo)
 
 #### Request handlers
 
-# proc installDebugApiHandlers*(router: var RestRouter) =
-#   # let
-#   #   cachedVersion =
-#   #     RestApiResponse.prepareJsonResponse((version: "Nimbus/" & fullVersionStr))
+const ROUTE_DEBUG_INFOV1* = "/debug/v1/info"
 
-#   router.api(MethodGet, "/debug/v1/info") do () -> RestApiResponse:
-#     return RestApiResponse.jsonResponse(
-#       cachedVersion,
-#       Http200,
-#       contentType = "application/json"
-#     )
+proc installDebugInfoV1Handler(router: var RestRouter) =
+  router.api(MethodGet, ROUTE_DEBUG_INFOV1) do () -> RestApiResponse:
+    # TODO: Replace with the actual info from the nwaku node
+    let info = DebugWakuInfo(listenAddresses: @["123"])
+
+    let resp = RestApiResponse.jsonResponse(info, status=Http200)
+    if resp.isErr():
+      debug "An error ocurred while building the json respose", error=resp.error()
+      return RestApiResponse.internalServerError()
+
+    return resp.get()
+
+
+#### Handlers installer
+
+proc installDebugApiHandlers*(router: var RestRouter) =
+  # TODO: List here all REST API request handlers (and redirects) for this API
+  #  namespace
+  installDebugInfoV1Handler(router)
+

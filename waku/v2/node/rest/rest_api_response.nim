@@ -1,6 +1,6 @@
 import std/typetraits
 import chronicles,
-    stew/[results, byteutils],
+    stew/results,
     presto/common
 import "."/json_serdes
 
@@ -14,3 +14,6 @@ proc jsonResponse*(t: typedesc[RestApiResponse], data: auto, status: HttpCode = 
     return err(res.error())
 
   ok(RestApiResponse.response(res.get(), status, MIMETYPE_JSON))
+
+proc internalServerError*(t: typedesc[RestApiResponse]): RestApiResponse =
+  RestApiResponse.error(Http500)
