@@ -1,6 +1,6 @@
 import std/typetraits
 import chronicles,
-  unittest,
+  unittest2,
   stew/[results, byteutils],
   json_serialization,
   presto/common
@@ -25,5 +25,5 @@ suite "Presto RestApiResponse extension":
     check:
       value.status == Http200
       value.kind == RestApiResponseKind.Content
-      value.content.contentType == MIMETYPE_JSON
+      value.content.contentType == $MIMETYPE_JSON
       value.content.data == toBytes("""{"listenAddresses":["TEST"]}""" )

@@ -1,6 +1,6 @@
 import std/typetraits
 import chronicles,
-  unittest,
+  unittest2,
   stew/[results, byteutils],
   json_serialization
 import "."/[json_serdes, debug_api]
