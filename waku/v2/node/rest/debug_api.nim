@@ -6,7 +6,8 @@ import
 import "."/[
   json_serdes,
   rest_api_response
-]
+],
+  ".."/wakunode2
 
 logScope: topics = "api_rest_debug"
 
@@ -58,10 +59,18 @@ proc readValue*(reader: var JsonReader[RestJson], value: var DebugWakuInfo)
 
 const ROUTE_DEBUG_INFOV1* = "/debug/v1/info"
 
-proc installDebugInfoV1Handler(router: var RestRouter) =
+proc installDebugInfoV1Handler(node: WakuNode, router: var RestRouter) =
   router.api(MethodGet, ROUTE_DEBUG_INFOV1) do () -> RestApiResponse:
-    # TODO: Replace with the actual info from the nwaku node
-    let info = DebugWakuInfo(listenAddresses: @["123"])
+    let nodeInfo = node.info()
+    let info = DebugWakuInfo(
+      listenAddresses: nodeInfo.listenAddresses,
+      enrUri:
+        block:
+          if nodeInfo.enrUri.isNil:
+            none(string)
+          else:
+            some(nodeInfo.enrUri)
+    )
 
     let resp = RestApiResponse.jsonResponse(info, status=Http200)
     if resp.isErr():
@@ -77,4 +86,3 @@ proc installDebugApiHandlers*(router: var RestRouter) =
   # TODO: List here all REST API request handlers (and redirects) for this API
   #  namespace
   installDebugInfoV1Handler(router)
-
