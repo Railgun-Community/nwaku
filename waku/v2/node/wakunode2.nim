@@ -1066,6 +1066,9 @@ when isMainModule:
           .mapErr(proc (e: cstring): string = $e)
       else:
         warn "Failed to init Waku DNS discovery"
+    # no dynamic bootstrap method specified
+    else:
+      return err("nodyn") # TODO: a dedicated non-string error type would be better here
 
   # 3/7 Initialize node
   proc initNode(conf: WakuNodeConf,
@@ -1342,7 +1345,10 @@ when isMainModule:
   var dynamicBootstrapNodes: seq[RemotePeerInfo]
   let dynamicBootstrapNodesRes = retrieveDynamicBootstrapNodes(conf)
   if dynamicBootstrapNodesRes.isErr:
-    error "2/7 Retrieving dynamic bootstrap nodes failed. Continuing without dynamic bootstrap nodes."
+    if dynamicBootstrapNodesRes.error() == "nodyn":
+      info "No method for retrieving dynamic bootstrap nodes specified. Continuing without dynamic bootstrap nodes."
+    else:
+      warn "2/7 Retrieving dynamic bootstrap nodes failed. Continuing without dynamic bootstrap nodes."
   else:
     dynamicBootstrapNodes = dynamicBootstrapNodesRes.get()
 
