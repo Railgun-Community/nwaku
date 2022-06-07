@@ -1346,7 +1346,7 @@ when isMainModule:
   var dynamicBootstrapNodes: seq[RemotePeerInfo]
   let dynamicBootstrapNodesRes = retrieveDynamicBootstrapNodes(conf)
   if dynamicBootstrapNodesRes.isErr:
-      warn "2/7 Retrieving dynamic bootstrap nodes failed. Continuing without dynamic bootstrap nodes."
+    warn "2/7 Retrieving dynamic bootstrap nodes failed. Continuing without dynamic bootstrap nodes."
   else:
     dynamicBootstrapNodes = dynamicBootstrapNodesRes.get()
 
